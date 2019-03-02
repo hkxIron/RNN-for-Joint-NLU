@@ -9,6 +9,16 @@ flatten = lambda l: [item for sublist in l for item in sublist]  # 二维展成�
 index_seq2slot = lambda s, index2slot: [index2slot[i] for i in s]
 index_seq2word = lambda s, index2word: [index2word[i] for i in s]
 
+def pad_seq(temp:list, length:int):
+    if len(temp) < length: # 这里的pad不是基于batch的pad,而是整个数据集都是相同的batch_size
+        temp.append('<EOS>')
+        while len(temp) < length:
+            temp.append('<PAD>')
+    else:
+        temp = temp[:length]
+        temp[-1] = '<EOS>' # 将最后一个字符替换成 <EOS>
+    return temp
+
 
 def data_pipeline(data, length=50):
     data = [t[:-1] for t in data]  # 去掉'\n'
@@ -19,27 +29,18 @@ def data_pipeline(data, length=50):
             data]
     data = [[t[0][1:-1], t[1][1:], t[2]] for t in data]  # 将BOS和EOS去掉，并去掉对应标注序列中相应的标注
     seq_in, seq_out, intent = list(zip(*data))
-    sin = []
-    sout = []
-    # padding，原始序列和标注序列结尾+<EOS>+n×<PAD>
+    sin = [] # 输入的句子
+    sout = [] #输出的sequence label
+    # padding，原始序列和标注序列结尾+<EOS>+n*<PAD>
     for i in range(len(seq_in)):
+        # 处理输入序列
         temp = seq_in[i]
-        if len(temp) < length:
-            temp.append('<EOS>')
-            while len(temp) < length:
-                temp.append('<PAD>')
-        else:
-            temp = temp[:length]
-            temp[-1] = '<EOS>'
+        pad_seq(temp, length)
         sin.append(temp)
 
+        #处理输出序列
         temp = seq_out[i]
-        if len(temp) < length:
-            while len(temp) < length:
-                temp.append('<PAD>')
-        else:
-            temp = temp[:length]
-            temp[-1] = '<EOS>'
+        pad_seq(temp, length)
         sout.append(temp)
         data = list(zip(sin, sout, intent))
     return data
@@ -53,7 +54,7 @@ def get_info_from_training_data(data):
     # 生成word2index
     word2index = {'<PAD>': 0, '<UNK>': 1, '<SOS>': 2, '<EOS>': 3}
     for token in vocab:
-        if token not in word2index.keys():
+        if token not in word2index:
             word2index[token] = len(word2index)
 
     # 生成index2word
@@ -62,7 +63,7 @@ def get_info_from_training_data(data):
     # 生成tag2index
     tag2index = {'<PAD>': 0, '<UNK>': 1, "O": 2}
     for tag in slot_tag:
-        if tag not in tag2index.keys():
+        if tag not in tag2index:
             tag2index[tag] = len(tag2index)
 
     # 生成index2tag
@@ -71,7 +72,7 @@ def get_info_from_training_data(data):
     # 生成intent2index
     intent2index = {'<UNK>': 0}
     for ii in intent_tag:
-        if ii not in intent2index.keys():
+        if ii not in intent2index:
             intent2index[ii] = len(intent2index)
 
     # 生成index2intent
@@ -80,6 +81,7 @@ def get_info_from_training_data(data):
 
 
 def getBatch(batch_size, train_data):
+    random.seed(0)
     random.shuffle(train_data)
     sindex = 0
     eindex = batch_size
@@ -96,7 +98,7 @@ def to_index(train, word2index, slot2index, intent2index):
     for sin, sout, intent in train:
         sin_ix = list(map(lambda i: word2index[i] if i in word2index else word2index["<UNK>"],
                           sin))
-        true_length = sin.index("<EOS>")
+        true_length = sin.index("<EOS>") # 计算句子的真实长度
         sout_ix = list(map(lambda i: slot2index[i] if i in slot2index else slot2index["<UNK>"],
                            sout))
         intent_ix = intent2index[intent] if intent in intent2index else intent2index["<UNK>"]

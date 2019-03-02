@@ -8,20 +8,27 @@ from my_metrics import *
 from tensorflow.python import debug as tf_debug
 import numpy as np
 
-input_steps = 50
+input_steps = 50 # 输入的序列长度
 embedding_size = 64
 hidden_size = 100
 n_layers = 2
 batch_size = 16
 vocab_size = 871
-slot_size = 122
-intent_size = 22
+slot_size = 123 # B-loc,I-loc,O,...
+intent_size = 22 # 22种intent
 epoch_num = 50
 
 
 def get_model():
-    model = Model(input_steps, embedding_size, hidden_size, vocab_size, slot_size,
-                 intent_size, epoch_num, batch_size, n_layers)
+    model = Model(input_steps,
+                  embedding_size,
+                  hidden_size,
+                  vocab_size,
+                  slot_size,
+                  intent_size,
+                  epoch_num,
+                  batch_size,
+                  n_layers)
     model.build()
     return model
 
